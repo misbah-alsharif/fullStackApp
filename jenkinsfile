@@ -5,13 +5,12 @@ pipeline {
         stage('Checkout') {
             steps {
                 // استنساخ الكود من GitHub
-                git 'https://github.com/misbah-alsharif/fullStackApp.git'
+                git credentialsId: 'jenkins-github1', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
         stage('Build') {
             steps {
-                // مثال لأمر بناء (هنا تستخدم npm بناءً على مشروع Node.js)
                 echo 'Building project...'
                 sh 'npm install'
             }
@@ -19,7 +18,6 @@ pipeline {
 
         stage('Test') {
             steps {
-                // مثال لاختبار الوحدة أو اختبار بسيط
                 echo 'Running tests...'
                 sh 'npm test'
             }
@@ -27,9 +25,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                // مثال للنشر (هنا يمكن إضافة أمر نشر إذا كنت تستخدم بيئة معينة)
                 echo 'Deploying the application...'
-                // يمكنك إضافة أوامر نشر هنا
             }
         }
     }
