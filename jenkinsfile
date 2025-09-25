@@ -5,7 +5,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 // استنساخ الكود من GitHub
-                git credentialsId: 'jenkins-github1', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
+                git credentialsId: 'jinkensGithub', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
