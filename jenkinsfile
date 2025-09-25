@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', credentialsId: 'jenkinsGithub', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
+                git branch: 'main', credentialsId: 'jinkensGithub', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
