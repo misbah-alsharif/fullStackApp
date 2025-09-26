@@ -15,7 +15,7 @@ tasks:
 
   - name: Push frontend image
     community.docker.docker_image:
-      name: misbah-alsharif/frontend-app
+      name: misbah2/frontend-app
       tag: latest
       push: true
       source: local
