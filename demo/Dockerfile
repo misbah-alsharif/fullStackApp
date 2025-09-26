@@ -1,6 +1,7 @@
 FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
-COPY . .
+COPY ./demo/pom.xml /app/pom.xml    # نسخ ملف pom.xml إلى الحاوية
+COPY ./demo/src /app/src            # نسخ الشيفرة المصدرية
 RUN mvn clean package -DskipTests
 
 # مرحلة التشغيل
