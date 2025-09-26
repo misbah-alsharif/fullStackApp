@@ -1,1 +1,10 @@
-
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce   # يسمح بالوصول للقراءة والكتابة من العقدة الواحدة
+  resources:
+    requests:
+      storage: 1Gi   
