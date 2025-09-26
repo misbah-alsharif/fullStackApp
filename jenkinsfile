@@ -1,30 +1,45 @@
 pipeline {
     agent any
 
+    environment {
+        DEMO_IMAGE    = "misbahalsharif/demo-app:latest"
+        FRONT_IMAGE   = "misbahalsharif/frontend-app:latest"
+    }
+
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', credentialsId: 'jinkensGithub', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
+                git branch: 'main',
+                    credentialsId: 'jenkins-github',
+                    url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
-        stage('Build') {
+        stage('Build Demo Image') {
             steps {
-                echo 'Building project...'
-                sh 'npm install'
+                dir('demo') {
+                    sh 'docker build -t $DEMO_IMAGE .'
+                }
             }
         }
 
-        stage('Test') {
+        stage('Build Frontend Image') {
             steps {
-                echo 'Running tests...'
-                sh 'npm test'
+                dir('frontend') {
+                    sh 'docker build -t $FRONT_IMAGE .'
+                }
             }
         }
 
-        stage('Deploy') {
+        stage('Smoke Test') {
             steps {
-                echo 'Deploying the application...'
+                sh '''
+                  docker run -d --rm -p 8080:8080 --name demo $DEMO_IMAGE
+                  docker run -d --rm -p 4200:80  --name frontend $FRONT_IMAGE
+                  sleep 5
+                  echo "== Running containers ==" && docker ps
+                  docker stop demo frontend
+                '''
             }
         }
     }
