@@ -13,7 +13,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    credentialsId: 'jenkins-github',  // أدخل credentialsId الخاص بك لـ GitHub
+                    credentialsId: 'jinkensGithub',  // أدخل credentialsId الخاص بك لـ GitHub
                     url: 'git@github.com:misbah-alsharif/fullStackApp.git'
             }
         }
