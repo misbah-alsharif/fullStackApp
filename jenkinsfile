@@ -2,11 +2,13 @@ pipeline {
     agent any
 
     environment {
-        DEMO_IMAGE    = "misbahalsharif/demo-app:latest"
-        FRONT_IMAGE   = "misbahalsharif/frontend-app:latest"
+        DOCKERHUB_USER = 'misbah-alsharif'
+        BACKEND_IMAGE = "${DOCKERHUB_USER}/backend-demo"
+        FRONTEND_IMAGE = "${DOCKERHUB_USER}/frontend-app"
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -15,32 +17,45 @@ pipeline {
             }
         }
 
-        stage('Build Demo Image') {
+        stage('Backend Build - Maven') {
             steps {
                 dir('demo') {
-                    sh 'docker build -t $DEMO_IMAGE .'
+                    sh 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        stage('Build Frontend Image') {
+        stage('Docker Build Images (Ansible)') {
             steps {
-                dir('frontend') {
-                    sh 'docker build -t $FRONT_IMAGE .'
+                sh 'ansible-playbook -i ansible/inventory.ini ansible/build.yml'
+            }
+        }
+
+        stage('Docker Push Images (Ansible)') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'docker_username', passwordVariable: 'docker_password')]) {
+                    sh '''
+                        ansible-playbook -i ansible/inventory.ini ansible/push.yml \
+                          -e docker_username=$docker_username \
+                          -e docker_password=$docker_password
+                    '''
                 }
             }
         }
 
-        stage('Smoke Test') {
+        stage('Deploy to Kubernetes (Ansible)') {
             steps {
-                sh '''
-                  docker run -d --rm -p 8080:8080 --name demo $DEMO_IMAGE
-                  docker run -d --rm -p 4200:80  --name frontend $FRONT_IMAGE
-                  sleep 5
-                  echo "== Running containers ==" && docker ps
-                  docker stop demo frontend
-                '''
+                sh 'ansible-playbook -i ansible/inventory.ini ansible/deploy.yml'
             }
+        }
+    }
+
+    post {
+        success {
+            echo 'Pipeline finished SUCCESSFULLY ✅'
+        }
+        failure {
+            echo 'Pipeline failed ❌ - check logs'
         }
     }
 }
