@@ -2,54 +2,57 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'misbah-alsharif'
+        DOCKERHUB_USER = 'misbah2'  // اسم المستخدم الخاص بـ Docker Hub
         BACKEND_IMAGE = "${DOCKERHUB_USER}/backend-demo"
         FRONTEND_IMAGE = "${DOCKERHUB_USER}/frontend-app"
+        BUILD_PLAYBOOK = 'ansible/build.yml'  // ملف Playbook لبناء Docker
+        DEPLOY_PLAYBOOK = 'ansible/deploy.yml'  // ملف Playbook لنشر التطبيق
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    credentialsId: 'jenkins-github',
+                    credentialsId: 'jenkins-github',  // أدخل credentialsId الخاص بك لـ GitHub
                     url: 'git@github.com:misbah-alsharif/fullStackApp.git'
             }
         }
 
-        stage('Backend Build - Maven') {
+        stage('Build_And_Push_Docker') {
             steps {
-                dir('demo') {
-                    sh 'mvn clean package -DskipTests'
+                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh """
+                        ansible-playbook ${BUILD_PLAYBOOK} -e docker_username=${DOCKER_USERNAME} -e docker_password=${DOCKER_PASSWORD}
+                    """
+                }
+            }
+            post {
+                success {
+                    echo "Docker Build & Push SUCCESS - #${BUILD_NUMBER}"
+                }
+                failure {
+                    echo "Docker Build & Push FAILED - #${BUILD_NUMBER}"
                 }
             }
         }
 
-        stage('Docker Build Images (Ansible)') {
+        stage('Deploy_Compare_App') {
             steps {
-                sh 'ansible-playbook -i ansible/inventory.ini ansible/build.yml'
+                sh """
+                    ansible-playbook ${DEPLOY_PLAYBOOK} --extra-vars "docker_image=${DOCKER_IMAGE} source_file=compare-app.yaml"
+                """
             }
-        }
-
-        stage('Docker Push Images (Ansible)') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'docker_username', passwordVariable: 'docker_password')]) {
-                    sh '''
-                        ansible-playbook -i ansible/inventory.ini ansible/push.yml \
-                          -e docker_username=$docker_username \
-                          -e docker_password=$docker_password
-                    '''
+            post {
+                success {
+                    echo "Deploy SUCCESS - #${BUILD_NUMBER}"
                 }
-            }
-        }
-
-        stage('Deploy to Kubernetes (Ansible)') {
-            steps {
-                sh 'ansible-playbook -i ansible/inventory.ini ansible/deploy.yml'
+                failure {
+                    echo "Deploy FAILED - #${BUILD_NUMBER}"
+                }
             }
         }
     }
-
+    
     post {
         success {
             echo 'Pipeline finished SUCCESSFULLY ✅'
