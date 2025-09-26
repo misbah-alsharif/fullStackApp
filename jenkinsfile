@@ -21,7 +21,15 @@ pipeline {
         stage('Build_And_Push_Docker') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh "ansible-playbook ${BUILD_PLAYBOOK} -e docker_username=${DOCKER_USERNAME} -e docker_password=${DOCKER_PASSWORD}"
+                    script {
+                        // بناء صورة الـ Backend
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                        sh "docker build -t ${BACKEND_IMAGE} ./demo"
+                        sh "docker push ${BACKEND_IMAGE}"
+
+                        // بناء صورة الـ Frontend
+                        sh "docker build -t ${FRONTEND_IMAGE} ./frontend"
+}
                 }
             }
             post {
