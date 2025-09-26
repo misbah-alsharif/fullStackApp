@@ -11,7 +11,7 @@ pipeline {
             steps {
                 git branch: 'main',
                     credentialsId: 'jenkins-github',
-                    url: 'https://github.com/misbah-alsharif/fullStackApp.git'
+                    url: 'git@github.com:misbah-alsharif/fullStackApp.git'
             }
         }
 
