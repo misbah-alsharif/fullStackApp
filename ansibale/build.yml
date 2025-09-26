@@ -4,7 +4,7 @@
   tasks:
     - name: Build backend image
       community.docker.docker_image:
-        name: misbah-alsharif/backend-demo
+        name: misbah2/backend-demo
         tag: latest
         build:
           path: ./demo
@@ -12,7 +12,7 @@
         
     - name: Build frontend image
       community.docker.docker_image:
-        name: misbah-alsharif/frontend-app
+        name: misbah2/frontend-app
         tag: latest
         build:
           path: ./frontend
