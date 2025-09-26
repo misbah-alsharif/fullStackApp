@@ -21,9 +21,7 @@ pipeline {
         stage('Build_And_Push_Docker') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh """
-                        ansible-playbook ${BUILD_PLAYBOOK} -e docker_username=${DOCKER_USERNAME} -e docker_password=${DOCKER_PASSWORD}
-                    """
+                    sh "ansible-playbook ${BUILD_PLAYBOOK}"
                 }
             }
             post {
