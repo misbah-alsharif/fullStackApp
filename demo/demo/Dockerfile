@@ -2,8 +2,7 @@ FROM maven:3.9.6-eclipse-temurin-17 AS build
 WORKDIR /app
 
 # نسخ ملفات pom.xml و src من المسار الصحيح
-COPY ./demo/demo/pom.xml /app/pom.xml
-COPY ./demo/demo/src /app/src
+COPY . . 
 
 RUN mvn clean package -DskipTests
 
