@@ -14,7 +14,7 @@ pipeline {
             steps {
                 git branch: 'main',
                     credentialsId: 'jinkensGithub',  // أدخل credentialsId الخاص بك لـ GitHub
-                    url: 'git@github.com:misbah-alsharif/fullStackApp.git'
+                    url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
