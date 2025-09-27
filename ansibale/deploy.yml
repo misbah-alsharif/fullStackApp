@@ -10,7 +10,7 @@
         src: "{{ item }}"
         dest: /home/ubuntu/k8s/
       with_items:
-        -/var/lib/jenkins/workspace/fullStackApp/k8s/mysql-secret.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-secret.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-pvc.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-deployment.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/backend-deployment.yaml
