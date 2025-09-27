@@ -9,7 +9,7 @@
         build:
           path: ./demo
         source: build
-        
+
     - name: Build frontend image
       community.docker.docker_image:
         name: misbah2/frontend-app
