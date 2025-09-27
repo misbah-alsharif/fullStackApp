@@ -14,7 +14,7 @@ export interface Customer {
 
 export class CustomerService {
 
-  private apiUrl = 'http://18.192.212.58:30100/customers';
+  private apiUrl = '/customers';
 
   constructor(private http: HttpClient) {}
 
