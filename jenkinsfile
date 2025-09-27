@@ -29,7 +29,8 @@ pipeline {
 
                         // بناء صورة الـ Frontend
                         sh "docker build -t ${FRONTEND_IMAGE} ./frontend"
-}
+                        sh "docker push ${FRONTEND_IMAGE}"  // دفع صورة الـ frontend إلى Docker Hub
+                    }
                 }
             }
             post {
@@ -45,7 +46,7 @@ pipeline {
         stage('Deploy_Compare_App') {
             steps {
                 sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
-                    }
+            }
             post {
                 success {
                     echo "Deploy SUCCESS - #${BUILD_NUMBER}"
