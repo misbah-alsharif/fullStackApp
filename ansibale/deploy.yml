@@ -15,6 +15,7 @@
         - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-deployment.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-service.yaml  # أضفنا ملف الخدمة هنا
         - /var/lib/jenkins/workspace/fullStackApp/k8s/backend-deployment.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/backend-service.yaml  # إضافة خدمة الـ backend
         - /var/lib/jenkins/workspace/fullStackApp/k8s/frontend-deployment.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/frontend-service.yaml
 
@@ -41,3 +42,6 @@
 
     - name: Apply MySQL service
       command: kubectl apply -f /home/ubuntu/k8s/mysql-service.yaml  # إضافة هذا الأمر لتطبيق خدمة MySQL
+
+    - name: Apply Backend service
+      command: kubectl apply -f /home/ubuntu/k8s/backend-service.yaml  # إضافة هذا الأمر لتطبيق خدمة الـ Backend
