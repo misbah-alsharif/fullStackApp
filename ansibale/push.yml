@@ -8,7 +8,7 @@ tasks:
 
   - name: Push backend image
     community.docker.docker_image:
-      name: misbah-alsharif/backend-demo
+      name: misbah2/backend-demo
       tag: latest
       push: true
       source: local
