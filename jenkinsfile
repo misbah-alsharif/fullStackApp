@@ -24,7 +24,7 @@ pipeline {
                     script {
                         // بناء صورة الـ Backend
                         sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-                        sh "docker build -t ${BACKEND_IMAGE} -f /var/lib/jenkins/workspace/fullStackApp/demo/Dockerfile ./demo"
+                        sh "docker build -t ${BACKEND_IMAGE} -f demo/demo/Dockerfile demo"
                         sh "docker push ${BACKEND_IMAGE}"
 
                         // بناء صورة الـ Frontend
