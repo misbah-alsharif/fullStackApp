@@ -10,12 +10,12 @@
         src: "{{ item }}"
         dest: /home/ubuntu/k8s/
       with_items:
-        - /var/lib/jenkins/workspace/fullstack-app/k8s/mysql-secret.yaml
-        - /var/lib/jenkins/workspace/fullstack-app/k8s/mysql-pvc.yaml
-        - /var/lib/jenkins/workspace/fullstack-app/k8s/mysql-deployment.yaml
-        - /var/lib/jenkins/workspace/fullstack-app/k8s/backend-deployment.yaml
-        - /var/lib/jenkins/workspace/fullstack-app/k8s/frontend-deployment.yaml
-        - /var/lib/jenkins/workspace/fullstack-app/k8s/frontend-service.yaml
+        -/var/lib/jenkins/workspace/fullStackApp/k8s/mysql-secret.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-pvc.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-deployment.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/backend-deployment.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/frontend-deployment.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/frontend-service.yaml
 
     - name: Delete old MySQL deployment if exists
       command: kubectl delete -f /home/ubuntu/k8s/mysql-deployment.yaml --ignore-not-found=true
