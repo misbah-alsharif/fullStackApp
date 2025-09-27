@@ -44,10 +44,8 @@ pipeline {
 
         stage('Deploy_Compare_App') {
             steps {
-                sh """
-                    ansible-playbook ${DEPLOY_PLAYBOOK} --extra-vars "docker_image=${DOCKER_IMAGE} source_file=compare-app.yaml"
-                """
-            }
+                sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
+                    }
             post {
                 success {
                     echo "Deploy SUCCESS - #${BUILD_NUMBER}"
