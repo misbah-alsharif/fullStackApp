@@ -13,6 +13,7 @@
         - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-secret.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-pvc.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-deployment.yaml
+        - /var/lib/jenkins/workspace/fullStackApp/k8s/mysql-service.yaml  # أضفنا ملف الخدمة هنا
         - /var/lib/jenkins/workspace/fullStackApp/k8s/backend-deployment.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/frontend-deployment.yaml
         - /var/lib/jenkins/workspace/fullStackApp/k8s/frontend-service.yaml
@@ -37,3 +38,6 @@
 
     - name: Apply Frontend service
       command: kubectl apply -f /home/ubuntu/k8s/frontend-service.yaml
+
+    - name: Apply MySQL service
+      command: kubectl apply -f /home/ubuntu/k8s/mysql-service.yaml  # إضافة هذا الأمر لتطبيق خدمة MySQL
