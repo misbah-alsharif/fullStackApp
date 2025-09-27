@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: misbah-alsharif/backend-demo:latest
+        image: misbah2/backend-demo:latest
         ports:
         - containerPort: 8080
         env:
