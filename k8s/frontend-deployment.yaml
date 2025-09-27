@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: misbah-alsharif/frontend-app:latest
+        image: misbah2/frontend-app:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 80
