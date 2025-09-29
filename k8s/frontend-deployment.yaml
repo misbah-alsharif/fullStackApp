@@ -18,6 +18,4 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 80
-        env:
-        - name: API_BASE_URL
-          value: http://backend-service:8080
+       
