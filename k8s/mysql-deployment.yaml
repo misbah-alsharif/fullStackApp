@@ -8,7 +8,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /mnt/data/mysql  # تأكد من أن هذا المسار موجود على الخادم
+    path: /tmp/data  # تأكد من أن هذا المسار موجود على الخادم
 
 ---
 apiVersion: v1
@@ -49,7 +49,7 @@ spec:
               value: mydb
           volumeMounts:
             - name: mysql-storage
-              mountPath: /var/lib/mysql
+              mountPath: /data
       volumes:
         - name: mysql-storage
           persistentVolumeClaim:
