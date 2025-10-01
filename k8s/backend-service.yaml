@@ -5,10 +5,8 @@ metadata:
 spec:
   selector:
     app: backend
-  type: NodePort         # يخلي الخدمة متاحة من خارج الكلاستر
   ports:
     - name: http
-      protocol: TCP
-      port: 8080         # البورت داخل الكلاستر
-      targetPort: 8080   # البورت داخل الـ pod
-      nodePort: 30100    # البورت الخارجي للوصول من الخارج
+      port: 8080
+      targetPort: 8080
+
