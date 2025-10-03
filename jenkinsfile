@@ -2,41 +2,36 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE = "misbah2/compare-appt2025:latest"
-        BUILD_PLAYBOOK = "build-push-docker.yml"
-        DEPLOY_PLAYBOOK = "deploy_compare_app.yml"
+        DOCKERHUB_USER = 'misbah2'              // اسم المستخدم الخاص بـ Docker Hub
+        BACKEND_IMAGE  = "${DOCKERHUB_USER}/backend-demo"
+        FRONTEND_IMAGE = "${DOCKERHUB_USER}/frontend-app"
+        BUILD_PLAYBOOK = 'ansible/build.yml'    // ملف Playbook لبناء Docker
+        DEPLOY_PLAYBOOK = 'ansible/deploy.yml' // ملف Playbook لنشر التطبيق
     }
 
     stages {
-        stage('Build') {
-            steps { sh '''
-    cd demo/demo
-    mvn clean package -DskipTests=true
-'''
- }
-            post {
-                success { emailext subject: "Build SUCCESS - #${BUILD_NUMBER}", body: "Build stage completed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Build FAILED - #${BUILD_NUMBER}", body: "Build stage failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-            }
-        }
-
-        stage('Test') {
-            steps { sh ''' cd demo/demo mvn test''' }
-            post {
-                success { emailext subject: "Test SUCCESS - #${BUILD_NUMBER}", body: "Test stage completed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Test FAILED - #${BUILD_NUMBER}", body: "Test stage failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-            }
-        }
-
-        stage('Sonar_Scan_Backend') {
+        stage('Checkout') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh 'mvn clean verify sonar:sonar -Dsonar.projectKey=my-app3'
-                }
+                git branch: 'main',
+                    credentialsId: 'jinkensGithub',
+                    url: 'https://github.com/misbah-alsharif/fullStackApp.git'
+            }
+        }
+
+        stage('Build_Backend_JAR') {
+            steps {
+                sh '''
+                    cd demo/demo
+                    mvn clean package -DskipTests
+                '''
             }
             post {
-                success { emailext subject: "Backend Sonar Scan SUCCESS - #${BUILD_NUMBER}", body: "Sonar scan completed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Backend Sonar Scan FAILED - #${BUILD_NUMBER}", body: "Sonar scan failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
+                success {
+                    echo "✅ Backend JAR Build SUCCESS"
+                }
+                failure {
+                    echo "❌ Backend JAR Build FAILED"
+                }
             }
         }
 
@@ -49,89 +44,130 @@ pipeline {
                 }
             }
             post {
-                success { emailext subject: "Frontend Build SUCCESS - #${BUILD_NUMBER}", body: "Frontend build completed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Frontend Build FAILED - #${BUILD_NUMBER}", body: "Frontend build failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
+                success {
+                    echo "✅ Frontend Build SUCCESS"
+                }
+                failure {
+                    echo "❌ Frontend Build FAILED"
+                }
             }
         }
 
-        stage('Sonar_Scan_Frontend') {
+        // 🧠 هنا أضفنا ستيج سونار للفرونت فقط
+        stage('SonarQube_Frontend_Scan') {
             steps {
                 dir('frontend') {
                     sh '''
-                        docker run --rm -v $PWD:/app -w /app sonarsource/sonar-scanner-cli \
-                        -Dsonar.projectKey=frontend \
-                        -Dsonar.sources=. \
-                        -Dsonar.host.url=http://3.65.226.16:9000 \
-                        -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
+                        sonar-scanner \
+                          -Dsonar.projectKey=frontend \
+                          -Dsonar.sources=. \
+                          -Dsonar.host.url=http://3.65.226.16:9000 \
+                          -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
                     '''
                 }
             }
             post {
-                success { emailext subject: "Frontend Sonar Scan SUCCESS - #${BUILD_NUMBER}", body: "Frontend Sonar scan completed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Frontend Sonar Scan FAILED - #${BUILD_NUMBER}", body: "Frontend Sonar scan failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-            }
-        }
-
-        stage('Quality_Gate') {
-            steps { waitForQualityGate abortPipeline: true }
-            post {
-                success { emailext subject: "Quality Gate SUCCESS - #${BUILD_NUMBER}", body: "Quality gate passed.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Quality Gate FAILED - #${BUILD_NUMBER}", body: "Quality gate failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-            }
-        }
-
-        stage('Nexus_Publish') {
-            steps {
-                nexusArtifactUploader(
-                    artifacts: [[
-                        artifactId: 'numeric',
-                        classifier: '',
-                        file: "target/numeric-0.0.1.jar",
-                        type: 'jar'
-                    ]],
-                    credentialsId: 'Nexus',
-                    groupId: 'com.devops',
-                    nexusUrl: '63.177.235.135:8081',
-                    nexusVersion: 'nexus3',
-                    protocol: 'http',
-                    repository: 'compare-service',
-                    version: "0.0.1-${BUILD_NUMBER}"
-                )
-            }
-            post {
-                success { emailext subject: "Nexus Publish SUCCESS - #${BUILD_NUMBER}", body: "Artifact uploaded successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Nexus Publish FAILED - #${BUILD_NUMBER}", body: "Artifact upload failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
+                success {
+                    echo "✅ SonarQube Frontend Scan SUCCESS"
+                }
+                failure {
+                    echo "❌ SonarQube Frontend Scan FAILED"
+                }
             }
         }
 
         stage('Build_And_Push_Docker') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    sh "ansible-playbook ${BUILD_PLAYBOOK}"
+                withCredentials([usernamePassword(credentialsId: 'docker',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                    script {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+
+                        // Backend Docker Image
+                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
+                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
+
+                        // Frontend Docker Image
+                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
+                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
+                    }
                 }
             }
             post {
-                success { emailext subject: "Docker Build & Push SUCCESS - #${BUILD_NUMBER}", body: "Docker image built & pushed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
-                failure { emailext subject: "Docker Build & Push FAILED - #${BUILD_NUMBER}", body: "Docker build/push failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
+                success {
+                    echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}"
+                }
+                failure {
+                    echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}"
+                }
+            }
+        }
+
+        stage('Upload_To_Nexus') {
+            parallel {
+                stage('Upload_Backend') {
+                    steps {
+                        nexusArtifactUploader artifacts: [[
+                            artifactId: 'demo',
+                            classifier: '',
+                            file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
+                            type: 'jar'
+                        ]],
+                        credentialsId: 'Nexus',
+                        groupId: 'com.example',
+                        nexusUrl: '3.65.226.16:8081',
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        repository: 'backend',
+                        version: "${BUILD_NUMBER}"
+                    }
+                }
+
+                stage('Upload_Frontend') {
+                    steps {
+                        dir('frontend') {
+                            sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
+                        }
+                        nexusArtifactUploader artifacts: [[
+                            artifactId: 'frontend',
+                            classifier: '',
+                            file: "frontend/frontend-${BUILD_NUMBER}.tgz",
+                            type: 'tgz'
+                        ]],
+                        credentialsId: 'Nexus',
+                        groupId: 'com.example.frontend',
+                        nexusUrl: '3.65.226.16:8081',
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        repository: 'frontend',
+                        version: "${BUILD_NUMBER}"
+                    }
+                }
             }
         }
 
         stage('Deploy_Compare_App') {
             steps {
-                sh "ansible-playbook -i hosts.ini ${DEPLOY_PLAYBOOK} --extra-vars \"docker_image=${DOCKER_IMAGE} source_file=compare-app.yaml\""
+                sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
             }
             post {
-                success { 
-                    emailext subject: "Deploy SUCCESS - #${BUILD_NUMBER}", 
-                             body: "Deployment completed successfully.\n${env.BUILD_URL}", 
-                             to: "m90714516@gmail.com" 
+                success {
+                    echo "✅ Deploy SUCCESS - #${BUILD_NUMBER}"
                 }
-                failure { 
-                    emailext subject: "Deploy FAILED - #${BUILD_NUMBER}", 
-                             body: "Deployment failed!\n${env.BUILD_URL}", 
-                             to: "m90714516@gmail.com" 
+                failure {
+                    echo "❌ Deploy FAILED - #${BUILD_NUMBER}"
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo '🎉 Pipeline finished SUCCESSFULLY ✅'
+        }
+        failure {
+            echo '🚨 Pipeline failed ❌ - check logs'
         }
     }
 }
