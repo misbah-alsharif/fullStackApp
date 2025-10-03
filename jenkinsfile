@@ -67,8 +67,7 @@ pipeline {
             steps {
                 dir('frontend') {
                     sh '''
-                        npm install
-                        npm run build
+                        docker run --rm -v $PWD:/app -w /app node:20 bash -c "npm install && npm run build"
                     '''
                 }
             }
