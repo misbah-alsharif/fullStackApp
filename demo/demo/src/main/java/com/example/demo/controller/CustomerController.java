@@ -4,10 +4,12 @@ import com.example.demo.entity.Customer;
 import com.example.demo.service.CustomerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.context.annotation.Profile;   
 
 import java.util.List;
 
 @CrossOrigin
+@Profile("!test-no-db")        
 @RestController
 @RequestMapping("/customers")
 public class CustomerController {
@@ -37,6 +39,10 @@ public class CustomerController {
     }
 
     @DeleteMapping("/{id}")
+    public void deleteCustomer(@PathVariable Long id) {
+        service.deleteCustomer(id);
+    }
+}
     public void deleteCustomer(@PathVariable Long id) {
         service.deleteCustomer(id);
     }
