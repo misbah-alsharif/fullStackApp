@@ -63,6 +63,25 @@ pipeline {
             }
         }
 
+        stage('Build_Frontend') {
+            steps {
+                dir('frontend') {
+                    sh '''
+                        npm install
+                        npm run build
+                    '''
+                }
+            }
+            post {
+                success {
+                    echo "✅ Frontend Build SUCCESS"
+                }
+                failure {
+                    echo "❌ Frontend Build FAILED"
+                }
+            }
+        }
+
         stage('Upload_To_Nexus') {
             parallel {
                 stage('Upload_Backend') {
