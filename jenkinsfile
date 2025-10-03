@@ -21,7 +21,10 @@ pipeline {
         }
 
         stage('Test') {
-            steps { sh 'mvn test' }
+            steps { sh '''
+            cd demo/demo
+            mvn test
+        ''' }
             post {
                 success { emailext subject: "Test SUCCESS - #${BUILD_NUMBER}", body: "Test stage completed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
                 failure { emailext subject: "Test FAILED - #${BUILD_NUMBER}", body: "Test stage failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
