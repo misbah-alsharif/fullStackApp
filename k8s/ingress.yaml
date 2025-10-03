@@ -2,21 +2,12 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: fullstack-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
     - host: myapp.com
       http:
         paths:
-          - path: /customers
-            pathType: Prefix
-            backend:
-              service:
-                name: backend-service
-                port:
-                  number: 8080
           - path: /
             pathType: Prefix
             backend:
@@ -24,3 +15,10 @@ spec:
                 name: frontend-service
                 port:
                   number: 80
+          - path: /customers
+            pathType: Prefix
+            backend:
+              service:
+                name: backend-service
+                port:
+                  number: 8080
