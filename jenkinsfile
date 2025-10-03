@@ -9,7 +9,11 @@ pipeline {
 
     stages {
         stage('Build') {
-            steps { sh 'mvn clean package -DskipTests=true' }
+            steps { sh '''
+    cd demo/demo
+    mvn clean package -DskipTests=true
+'''
+ }
             post {
                 success { emailext subject: "Build SUCCESS - #${BUILD_NUMBER}", body: "Build stage completed successfully.\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
                 failure { emailext subject: "Build FAILED - #${BUILD_NUMBER}", body: "Build stage failed!\n${env.BUILD_URL}", to: "m90714516@gmail.com" }
