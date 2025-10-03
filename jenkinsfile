@@ -2,18 +2,18 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'misbah2'  // اسم المستخدم الخاص بـ Docker Hub
-        BACKEND_IMAGE = "${DOCKERHUB_USER}/backend-demo"
+        DOCKERHUB_USER = 'misbah2'              // اسم المستخدم الخاص بـ Docker Hub
+        BACKEND_IMAGE  = "${DOCKERHUB_USER}/backend-demo"
         FRONTEND_IMAGE = "${DOCKERHUB_USER}/frontend-app"
-        BUILD_PLAYBOOK = 'ansible/build.yml'  // ملف Playbook لبناء Docker
-        DEPLOY_PLAYBOOK = 'ansible/deploy.yml'  // ملف Playbook لنشر التطبيق
+        BUILD_PLAYBOOK = 'ansible/build.yml'    // ملف Playbook لبناء Docker
+        DEPLOY_PLAYBOOK = 'ansible/deploy.yml' // ملف Playbook لنشر التطبيق
     }
 
     stages {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    credentialsId: 'jinkensGithub',  
+                    credentialsId: 'jinkensGithub',
                     url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
@@ -27,61 +27,81 @@ pipeline {
             }
             post {
                 success {
-                    echo "Backend JAR Build SUCCESS ✅"
+                    echo "✅ Backend JAR Build SUCCESS"
                 }
                 failure {
-                    echo "Backend JAR Build FAILED ❌"
+                    echo "❌ Backend JAR Build FAILED"
                 }
             }
         }
 
         stage('Build_And_Push_Docker') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'docker',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD')]) {
                     script {
-                        // Backend Docker Image
                         sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-                        sh "docker build -t ${BACKEND_IMAGE} -f demo/demo/Dockerfile demo"
-                        sh "docker push ${BACKEND_IMAGE}"
+
+                        // Backend Docker Image
+                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
+                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
 
                         // Frontend Docker Image
-                        sh "docker build -t ${FRONTEND_IMAGE} ./frontend"
-                        sh "docker push ${FRONTEND_IMAGE}"
+                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
+                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
                     }
                 }
             }
             post {
                 success {
-                    echo "Docker Build & Push SUCCESS - #${BUILD_NUMBER}"
+                    echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}"
                 }
                 failure {
-                    echo "Docker Build & Push FAILED - #${BUILD_NUMBER}"
+                    echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}"
                 }
             }
         }
 
         stage('Upload_To_Nexus') {
-            steps {
-                nexusArtifactUploader artifacts: [[
-                    artifactId: 'demo',
-                    classifier: '',
-                    file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
-                    type: 'jar'
-                ]],
-                credentialsId: 'Nexus',
-                groupId: 'com.example',
-                nexusUrl: '3.65.226.16:8081',
-                nexusVersion: 'nexus3',
-                protocol: 'http',
-                repository: 'backend',
-                version: '0.0.1'
-            }
-            post {
-                success {
-                    echo "Upload to Nexus SUCCESS ✅"
+            parallel {
+                stage('Upload_Backend') {
+                    steps {
+                        nexusArtifactUploader artifacts: [[
+                            artifactId: 'demo',
+                            classifier: '',
+                            file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
+                            type: 'jar'
+                        ]],
+                        credentialsId: 'Nexus',
+                        groupId: 'com.example',
+                        nexusUrl: '3.65.226.16:8081',
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        repository: 'backend',
+                        version: "${BUILD_NUMBER}"
+                    }
                 }
-                failure {
-                    echo "Upload to Nexus FAILED ❌"
+
+                stage('Upload_Frontend') {
+                    steps {
+                        dir('frontend') {
+                            sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
+                        }
+                        nexusArtifactUploader artifacts: [[
+                            artifactId: 'frontend',
+                            classifier: '',
+                            file: "frontend/frontend-${BUILD_NUMBER}.tgz",
+                            type: 'tgz'
+                        ]],
+                        credentialsId: 'Nexus',
+                        groupId: 'com.example.frontend',
+                        nexusUrl: '3.65.226.16:8081',
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        repository: 'frontend',
+                        version: "${BUILD_NUMBER}"
+                    }
                 }
             }
         }
@@ -92,21 +112,21 @@ pipeline {
             }
             post {
                 success {
-                    echo "Deploy SUCCESS - #${BUILD_NUMBER}"
+                    echo "✅ Deploy SUCCESS - #${BUILD_NUMBER}"
                 }
                 failure {
-                    echo "Deploy FAILED - #${BUILD_NUMBER}"
+                    echo "❌ Deploy FAILED - #${BUILD_NUMBER}"
                 }
             }
         }
     }
-    
+
     post {
         success {
-            echo 'Pipeline finished SUCCESSFULLY ✅'
+            echo '🎉 Pipeline finished SUCCESSFULLY ✅'
         }
         failure {
-            echo 'Pipeline failed ❌ - check logs'
+            echo '🚨 Pipeline failed ❌ - check logs'
         }
     }
 }
