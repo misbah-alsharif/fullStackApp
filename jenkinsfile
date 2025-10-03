@@ -43,6 +43,32 @@ pipeline {
             }
         }
 
+        stage('Upload_To_Nexus') {
+            steps {
+                nexusArtifactUploader artifacts: [[
+                    artifactId: 'demo',
+                    classifier: '',
+                    file: 'target/demo-0.0.1-SNAPSHOT.jar',
+                    type: 'jar'
+                ]],
+                credentialsId: 'Nexus',
+                groupId: 'com.example',
+                nexusUrl: '3.65.226.16:8081',
+                nexusVersion: 'nexus3',
+                protocol: 'http',
+                repository: 'backend',
+                version: '0.0.1-SNAPSHOT'
+            }
+            post {
+                success {
+                    echo "Upload to Nexus SUCCESS ✅"
+                }
+                failure {
+                    echo "Upload to Nexus FAILED ❌"
+                }
+            }
+        }
+
         stage('Deploy_Compare_App') {
             steps {
                 sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
