@@ -18,6 +18,23 @@ pipeline {
             }
         }
 
+        stage('Build_Backend_JAR') {
+            steps {
+                sh '''
+                    cd demo
+                    mvn clean package -DskipTests
+                '''
+            }
+            post {
+                success {
+                    echo "Backend JAR Build SUCCESS ✅"
+                }
+                failure {
+                    echo "Backend JAR Build FAILED ❌"
+                }
+            }
+        }
+
         stage('Build_And_Push_Docker') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
@@ -48,7 +65,7 @@ pipeline {
                 nexusArtifactUploader artifacts: [[
                     artifactId: 'demo',
                     classifier: '',
-                    file: 'target/demo-0.0.1-SNAPSHOT.jar',
+                    file: 'demo/target/demo-0.0.1-SNAPSHOT.jar',
                     type: 'jar'
                 ]],
                 credentialsId: 'Nexus',
