@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER = 'misbah2'              // اسم المستخدم الخاص بـ Docker Hub
-        BACKEND_IMAGE  = "${DOCKERHUB_USER}/backend-demo"
-        FRONTEND_IMAGE = "${DOCKERHUB_USER}/frontend-app"
-        BUILD_PLAYBOOK = 'ansible/build.yml'    // ملف Playbook لبناء Docker
-        DEPLOY_PLAYBOOK = 'ansible/deploy.yml' // ملف Playbook لنشر التطبيق
+        DOCKERHUB_USER   = 'misbah2'              // اسم المستخدم الخاص بـ Docker Hub
+        BACKEND_IMAGE    = "${DOCKERHUB_USER}/backend-demo"
+        FRONTEND_IMAGE   = "${DOCKERHUB_USER}/frontend-app"
+        BUILD_PLAYBOOK   = 'ansible/build.yml'    // ملف Playbook لبناء Docker
+        DEPLOY_PLAYBOOK  = 'ansible/deploy.yml'   // ملف Playbook لنشر التطبيق
     }
 
     stages {
@@ -53,23 +53,30 @@ pipeline {
             }
         }
 
-        // 🧠 هنا أضفنا ستيج سونار للفرونت فقط
+        // 🧠 ستيج تحليل SonarQube للفرونت فقط
         stage('SonarQube Analysis - Frontend') {
-    steps {
-        dir('frontend') {
-            withSonarQubeEnv('Analyze-my-app2') {
-                sh '''
-                npx sonar-scanner \
-                  -Dsonar.projectKey=frontend \
-                  -Dsonar.sources=. \
-                  -Dsonar.host.url=http://3.65.226.16:9000 \
-                  -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
-                '''
-                '''
+            steps {
+                dir('frontend') {
+                    withSonarQubeEnv('Analyze-my-app2') {
+                        sh '''
+                            npx sonar-scanner \
+                              -Dsonar.projectKey=frontend \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://3.65.226.16:9000 \
+                              -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
+                        '''
+                    }
+                }
+            }
+            post {
+                success {
+                    echo "✅ SonarQube Analysis SUCCESS"
+                }
+                failure {
+                    echo "❌ SonarQube Analysis FAILED"
+                }
             }
         }
-    }
-}
 
         stage('Build_And_Push_Docker') {
             steps {
