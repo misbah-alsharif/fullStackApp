@@ -10,6 +10,7 @@ pipeline {
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -26,12 +27,8 @@ pipeline {
                 '''
             }
             post {
-                success {
-                    echo "✅ Backend JAR Build SUCCESS"
-                }
-                failure {
-                    echo "❌ Backend JAR Build FAILED"
-                }
+                success { echo "✅ Backend JAR Build SUCCESS" }
+                failure { echo "❌ Backend JAR Build FAILED" }
             }
         }
 
@@ -44,37 +41,28 @@ pipeline {
                 }
             }
             post {
-                success {
-                    echo "✅ Frontend Build SUCCESS"
-                }
-                failure {
-                    echo "❌ Frontend Build FAILED"
-                }
+                success { echo "✅ Frontend Build SUCCESS" }
+                failure { echo "❌ Frontend Build FAILED" }
             }
         }
 
         // 🧠 ستيج تحليل SonarQube للفرونت فقط
         stage('SonarQube Analysis - Frontend') {
-    steps {
-        dir('frontend') {
-            withSonarQubeEnv('Analyze-my-app2') {
-                sh '''
-                    npx sonar-scanner \
-                      -Dsonar.projectKey=frontend \
-                      -Dsonar.sources=. \
-                      -Dsonar.host.url=http://3.65.226.16:9000
-                '''
+            steps {
+                dir('frontend') {
+                    withSonarQubeEnv('Analyze-my-app2') {
+                        sh '''
+                            npx sonar-scanner \
+                              -Dsonar.projectKey=frontend \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://3.65.226.16:9000
+                        '''
+                    }
+                }
             }
-        }
-    }
-}
             post {
-                success {
-                    echo "✅ SonarQube Analysis SUCCESS"
-                }
-                failure {
-                    echo "❌ SonarQube Analysis FAILED"
-                }
+                success { echo "✅ SonarQube Analysis SUCCESS" }
+                failure { echo "❌ SonarQube Analysis FAILED" }
             }
         }
 
@@ -97,12 +85,8 @@ pipeline {
                 }
             }
             post {
-                success {
-                    echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}"
-                }
-                failure {
-                    echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}"
-                }
+                success { echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}" }
+                failure { echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}" }
             }
         }
 
@@ -154,22 +138,14 @@ pipeline {
                 sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
             }
             post {
-                success {
-                    echo "✅ Deploy SUCCESS - #${BUILD_NUMBER}"
-                }
-                failure {
-                    echo "❌ Deploy FAILED - #${BUILD_NUMBER}"
-                }
+                success { echo "✅ Deploy SUCCESS - #${BUILD_NUMBER}" }
+                failure { echo "❌ Deploy FAILED - #${BUILD_NUMBER}" }
             }
         }
     }
 
     post {
-        success {
-            echo '🎉 Pipeline finished SUCCESSFULLY ✅'
-        }
-        failure {
-            echo '🚨 Pipeline failed ❌ - check logs'
-        }
+        success { echo '🎉 Pipeline finished SUCCESSFULLY ✅' }
+        failure { echo '🚨 Pipeline failed ❌ - check logs' }
     }
 }
