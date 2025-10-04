@@ -7,8 +7,6 @@ pipeline {
         FRONTEND_IMAGE   = "${DOCKERHUB_USER}/frontend-app"
         BUILD_PLAYBOOK   = 'ansible/build.yml'
         DEPLOY_PLAYBOOK  = 'ansible/deploy.yml'
-        SONAR_TOKEN      = 'sqp_8990494f829567460b3cac2d1d9d086ebbce146a' // توكن SonarQube
-        SONAR_HOST       = 'http://3.65.226.16:9000'
     }
 
     stages {
@@ -48,19 +46,32 @@ pipeline {
             }
         }
 
-        stage('SonarQube Frontend') {
-            steps {
-                dir('frontend') {
-                    sh """
-                        docker run --rm \
-                            -v \$PWD:/usr/src -w /usr/src \
-                            -e SONAR_TOKEN='${SONAR_TOKEN}' \
-                            sonarsource/sonar-scanner-cli \
-                            -Dsonar.projectKey=frontend \
-                            -Dsonar.sources=. \
-                            -Dsonar.host.url=${SONAR_HOST} \
-                            -Dsonar.login=\$SONAR_TOKEN
-                    """
+        stage('SonarQube Analysis') {
+            parallel {
+
+                stage('Frontend Sonar') {
+                    steps {
+                        dir('frontend') {
+                            sh '''
+                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                  -Dsonar.projectKey=frontend \
+                                  -Dsonar.sources=.
+                            '''
+                        }
+                    }
+                }
+
+                stage('Backend Sonar') {
+                    steps {
+                        dir('demo/demo') {
+                            sh '''
+                                mvn clean verify sonar:sonar \
+                                  -Dsonar.projectKey=backend \
+                                  -Dsonar.host.url=http://3.65.226.16:9000 \
+                                  -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -72,20 +83,14 @@ pipeline {
                     passwordVariable: 'DOCKER_PASSWORD')]) {
                     script {
                         sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-
                         // Backend Docker
                         sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
                         sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-
                         // Frontend Docker
                         sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
                         sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
                     }
                 }
-            }
-            post {
-                success { echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}" }
-                failure { echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}" }
             }
         }
 
@@ -135,10 +140,6 @@ pipeline {
         stage('Deploy_Compare_App') {
             steps {
                 sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
-            }
-            post {
-                success { echo "✅ Deploy SUCCESS - #${BUILD_NUMBER}" }
-                failure { echo "❌ Deploy FAILED - #${BUILD_NUMBER}" }
             }
         }
 
