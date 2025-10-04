@@ -68,6 +68,7 @@ pipeline {
                             docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
                               -Dsonar.projectKey=backend \
                               -Dsonar.sources=. \
+                              -Dsonar.java.binaries=target/classes \
                               -Dsonar.host.url=http://3.65.226.16:9000 \
                               -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
                             '''
