@@ -2,11 +2,11 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_USER   = 'misbah2'              // اسم المستخدم الخاص بـ Docker Hub
+        DOCKERHUB_USER   = 'misbah2'
         BACKEND_IMAGE    = "${DOCKERHUB_USER}/backend-demo"
         FRONTEND_IMAGE   = "${DOCKERHUB_USER}/frontend-app"
-        BUILD_PLAYBOOK   = 'ansible/build.yml'    // ملف Playbook لبناء Docker
-        DEPLOY_PLAYBOOK  = 'ansible/deploy.yml'   // ملف Playbook لنشر التطبيق
+        BUILD_PLAYBOOK   = 'ansible/build.yml'
+        DEPLOY_PLAYBOOK  = 'ansible/deploy.yml'
     }
 
     stages {
@@ -46,31 +46,32 @@ pipeline {
             }
         }
 
-        // 🧠 ستيج تحليل SonarQube للفرونت فقط
         stage('SonarQube Frontend') {
             steps {
                 script {
                     try {
                         dir('frontend') {
-                            withSonarQubeEnv('Analyze-my-app2') {
+                            withSonarQubeEnv('SonarQube') {
                                 sh '''
-                                    npx sonar-scanner \
+                                    sonar-scanner \
                                       -Dsonar.projectKey=frontend \
                                       -Dsonar.sources=.
                                 '''
                             }
                         }
 
-                        // ننتظر نتيجة الجودة (Quality Gate)
                         timeout(time: 15, unit: 'MINUTES') {
-                            waitForQualityGate(abortPipeline: true)
+                            def qg = waitForQualityGate(abortPipeline: true)
+                            if (qg.status == 'OK') {
+                                echo "✅ SonarQube Frontend SUCCESS"
+                            } else {
+                                echo "❌ SonarQube Frontend FAILED"
+                            }
                         }
 
-                        echo "✅ SonarQube Frontend SUCCESS"
-
                     } catch (Exception e) {
-                        echo "❌ SonarQube Frontend FAILED"
-                        error("Pipeline aborted due to SonarQube Quality Gate failure")
+                        echo "❌ SonarQube Frontend FAILED: ${e.getMessage()}"
+                        error("Pipeline aborted due to SonarQube issue")
                     }
                 }
             }
@@ -83,12 +84,10 @@ pipeline {
                     passwordVariable: 'DOCKER_PASSWORD')]) {
                     script {
                         sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-
-                        // Backend Docker Image
+                        // Backend Docker
                         sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
                         sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-
-                        // Frontend Docker Image
+                        // Frontend Docker
                         sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
                         sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
                     }
@@ -152,6 +151,7 @@ pipeline {
                 failure { echo "❌ Deploy FAILED - #${BUILD_NUMBER}" }
             }
         }
+
     }
 
     post {
