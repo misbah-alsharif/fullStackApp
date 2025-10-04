@@ -48,31 +48,12 @@ pipeline {
 
         stage('SonarQube Frontend') {
             steps {
-                script {
-                    try {
-                        dir('frontend') {
-                            withSonarQubeEnv('SonarQube') {
-                                sh '''
-                                    sonar-scanner \
-                                      -Dsonar.projectKey=frontend \
-                                      -Dsonar.sources=.
-                                '''
-                            }
-                        }
-
-                        timeout(time: 15, unit: 'MINUTES') {
-                            def qg = waitForQualityGate(abortPipeline: true)
-                            if (qg.status == 'OK') {
-                                echo "✅ SonarQube Frontend SUCCESS"
-                            } else {
-                                echo "❌ SonarQube Frontend FAILED"
-                            }
-                        }
-
-                    } catch (Exception e) {
-                        echo "❌ SonarQube Frontend FAILED: ${e.getMessage()}"
-                        error("Pipeline aborted due to SonarQube issue")
-                    }
+                dir('frontend') {
+                    sh '''
+                        docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                          -Dsonar.projectKey=frontend \
+                          -Dsonar.sources=.
+                    '''
                 }
             }
         }
@@ -84,10 +65,12 @@ pipeline {
                     passwordVariable: 'DOCKER_PASSWORD')]) {
                     script {
                         sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-                        // Backend Docker
+
+                        // Backend Docker Image
                         sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
                         sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-                        // Frontend Docker
+
+                        // Frontend Docker Image
                         sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
                         sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
                     }
