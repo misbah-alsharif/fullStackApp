@@ -55,19 +55,19 @@ pipeline {
 
         // 🧠 ستيج تحليل SonarQube للفرونت فقط
         stage('SonarQube Analysis - Frontend') {
-            steps {
-                dir('frontend') {
-                    withSonarQubeEnv('Analyze-my-app2') {
-                        sh '''
-                            npx sonar-scanner \
-                              -Dsonar.projectKey=frontend \
-                              -Dsonar.sources=. \
-                              -Dsonar.host.url=http://3.65.226.16:9000 \
-                              -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
-                        '''
-                    }
-                }
+    steps {
+        dir('frontend') {
+            withSonarQubeEnv('Analyze-my-app2') {
+                sh '''
+                    npx sonar-scanner \
+                      -Dsonar.projectKey=frontend \
+                      -Dsonar.sources=. \
+                      -Dsonar.host.url=http://3.65.226.16:9000
+                '''
             }
+        }
+    }
+}
             post {
                 success {
                     echo "✅ SonarQube Analysis SUCCESS"
