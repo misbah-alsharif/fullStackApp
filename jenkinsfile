@@ -46,31 +46,30 @@ pipeline {
             }
         }
 
-        // 🔹 Sonar analysis for Backend & Frontend in parallel
         stage('SonarQube Analysis') {
             parallel {
-                stage('Backend Sonar') {
+                stage('Frontend') {
                     steps {
-                        dir('demo/demo') {
+                        dir('frontend') {
                             sh '''
-                                mvn clean verify sonar:sonar \
-                                  -Dsonar.projectKey=backend \
-                                  -Dsonar.host.url=http://3.65.226.16:9000 \
-                                  -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
+                            docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                              -Dsonar.projectKey=frontend \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://3.65.226.16:9000 \
+                              -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
                             '''
                         }
                     }
                 }
-
-                stage('Frontend Sonar') {
+                stage('Backend') {
                     steps {
-                        dir('frontend') {
+                        dir('demo/demo') {
                             sh '''
-                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                                  -Dsonar.projectKey=frontend \
-                                  -Dsonar.sources=. \
-                                  -Dsonar.host.url=http://3.65.226.16:9000 \
-                                  -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
+                            docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                              -Dsonar.projectKey=backend \
+                              -Dsonar.sources=. \
+                              -Dsonar.host.url=http://3.65.226.16:9000 \
+                              -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
                             '''
                         }
                     }
@@ -152,6 +151,7 @@ pipeline {
                 failure { echo "❌ Deploy FAILED - #${BUILD_NUMBER}" }
             }
         }
+
     }
 
     post {
