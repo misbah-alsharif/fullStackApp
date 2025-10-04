@@ -47,22 +47,32 @@ pipeline {
         }
 
         // 🧠 ستيج تحليل SonarQube للفرونت فقط
-        stage('SonarQube Analysis - Frontend') {
+        stage('SonarQube Frontend') {
             steps {
-                dir('frontend') {
-                    withSonarQubeEnv('Analyze-my-app2') {
-                        sh '''
-                            npx sonar-scanner \
-                              -Dsonar.projectKey=frontend \
-                              -Dsonar.sources=. \
-                              -Dsonar.host.url=http://3.65.226.16:9000
-                        '''
+                script {
+                    try {
+                        dir('frontend') {
+                            withSonarQubeEnv('Analyze-my-app2') {
+                                sh '''
+                                    npx sonar-scanner \
+                                      -Dsonar.projectKey=frontend \
+                                      -Dsonar.sources=.
+                                '''
+                            }
+                        }
+
+                        // ننتظر نتيجة الجودة (Quality Gate)
+                        timeout(time: 15, unit: 'MINUTES') {
+                            waitForQualityGate(abortPipeline: true)
+                        }
+
+                        echo "✅ SonarQube Frontend SUCCESS"
+
+                    } catch (Exception e) {
+                        echo "❌ SonarQube Frontend FAILED"
+                        error("Pipeline aborted due to SonarQube Quality Gate failure")
                     }
                 }
-            }
-            post {
-                success { echo "✅ SonarQube Analysis SUCCESS" }
-                failure { echo "❌ SonarQube Analysis FAILED" }
             }
         }
 
