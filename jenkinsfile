@@ -54,27 +54,22 @@ pipeline {
         }
 
         // 🧠 هنا أضفنا ستيج سونار للفرونت فقط
-        stage('SonarQube_Frontend_Scan') {
-            steps {
-                dir('frontend') {
-                    sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=frontend \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=http://3.65.226.16:9000 \
-                          -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
-                    '''
-                }
-            }
-            post {
-                success {
-                    echo "✅ SonarQube Frontend Scan SUCCESS"
-                }
-                failure {
-                    echo "❌ SonarQube Frontend Scan FAILED"
-                }
+        stage('SonarQube Analysis - Frontend') {
+    steps {
+        dir('frontend') {
+            withSonarQubeEnv('Analyze-my-app2') {
+                sh '''
+                npx sonar-scanner \
+                  -Dsonar.projectKey=frontend \
+                  -Dsonar.sources=. \
+                  -Dsonar.host.url=http://3.65.226.16:9000 \
+                  -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
+                '''
+                '''
             }
         }
+    }
+}
 
         stage('Build_And_Push_Docker') {
             steps {
