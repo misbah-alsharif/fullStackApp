@@ -7,6 +7,8 @@ pipeline {
         FRONTEND_IMAGE   = "${DOCKERHUB_USER}/frontend-app"
         BUILD_PLAYBOOK   = 'ansible/build.yml'
         DEPLOY_PLAYBOOK  = 'ansible/deploy.yml'
+        SONAR_TOKEN      = 'sqp_8990494f829567460b3cac2d1d9d086ebbce146a' // توكن SonarQube
+        SONAR_HOST       = 'http://3.65.226.16:9000'
     }
 
     stages {
@@ -49,11 +51,16 @@ pipeline {
         stage('SonarQube Frontend') {
             steps {
                 dir('frontend') {
-                    sh '''
-                        docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                          -Dsonar.projectKey=frontend \
-                          -Dsonar.sources=.
-                    '''
+                    sh """
+                        docker run --rm \
+                            -v \$PWD:/usr/src -w /usr/src \
+                            -e SONAR_TOKEN='${SONAR_TOKEN}' \
+                            sonarsource/sonar-scanner-cli \
+                            -Dsonar.projectKey=frontend \
+                            -Dsonar.sources=. \
+                            -Dsonar.host.url=${SONAR_HOST} \
+                            -Dsonar.login=\$SONAR_TOKEN
+                    """
                 }
             }
         }
@@ -66,11 +73,11 @@ pipeline {
                     script {
                         sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
 
-                        // Backend Docker Image
+                        // Backend Docker
                         sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
                         sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
 
-                        // Frontend Docker Image
+                        // Frontend Docker
                         sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
                         sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
                     }
