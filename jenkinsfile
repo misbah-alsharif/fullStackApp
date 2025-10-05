@@ -13,132 +13,79 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: 'main',
-                    credentialsId: 'jinkensGithub',
+                git branch: 'main', 
+                    credentialsId: 'jinkensGithub', 
                     url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
-        stage('Build') {
-            parallel {
-                stage('Build_Backend_JAR') {
-                    steps {
-                        sh '''
-                            cd demo/demo
-                            mvn clean package -DskipTests
-                        '''
-                    }
-                }
+        stage('Build_Backend_JAR') {
+            steps {
+                sh '''
+                    cd demo/demo
+                    mvn clean package -DskipTests
+                '''
+            }
+            post {
+                success { echo "✅ Backend JAR Build SUCCESS" }
+                failure { echo "❌ Backend JAR Build FAILED" }
+            }
+        }
 
-                stage('Build_Frontend') {
+        stage('Build_Frontend') {
+            steps {
+                dir('frontend') {
+                    sh '''
+                        docker run --rm -v $PWD:/app -w /app node:20 bash -c "npm install && npm run build"
+                    '''
+                }
+            }
+            post {
+                success { echo "✅ Frontend Build SUCCESS" }
+                failure { echo "❌ Frontend Build FAILED" }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            parallel {
+
+                stage('Frontend') {
                     steps {
                         dir('frontend') {
                             sh '''
-                                docker run --rm -v $PWD:/app -w /app node:20 bash -c "npm install && npm run build"
+                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                -Dsonar.projectKey=frontend \
+                                -Dsonar.sources=. \
+                                -Dsonar.exclusions=node_modules/**,dist/** \
+                                -Dsonar.host.url=http://3.70.100.89:9000 \
+                                -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a \
+                                -Dsonar.language=js
                             '''
                         }
                     }
                 }
-            }
-        }
 
-        stage('Test') {
-            steps {
-                echo '🧪 Running Tests... (skipped for now)'
-            }
-        }
-
-        stage('Sonar_Scan') {
-            parallel {
-                stage('Frontend_Sonar') {
-                    steps {
-                        dir('frontend') {
-                            withSonarQubeEnv('Analyze-my-app2') {
-                                sh '''
-                                    docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                                    -Dsonar.projectKey=frontend \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.exclusions=node_modules/**,dist/**
-                                '''
-                            }
-                        }
-                    }
-                }
-
-                stage('Backend_Sonar') {
+                stage('Backend') {
                     steps {
                         dir('demo/demo') {
-                            withSonarQubeEnv('Analyze-my-app2') {
-                                sh '''
-                                    docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                                    -Dsonar.projectKey=backend \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.java.binaries=target/classes
-                                '''
-                            }
+                            sh '''
+                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                -Dsonar.projectKey=backend \
+                                -Dsonar.sources=. \
+                                -Dsonar.java.binaries=target/classes \
+                                -Dsonar.host.url=http://3.70.100.89:9000 \
+                                -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
+                            '''
                         }
                     }
                 }
+
             }
         }
 
-        stage('Quality_Gate') {
+        stage('Build_And_Push_Docker') {
             steps {
-                echo '🚦 Waiting for SonarQube Quality Gate result...'
-                timeout(time: 15, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        stage('Nexus_Publish') {
-            parallel {
-                stage('Upload_Backend') {
-                    steps {
-                        nexusArtifactUploader artifacts: [[
-                            artifactId: 'demo',
-                            classifier: '',
-                            file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
-                            type: 'jar'
-                        ]],
-                        credentialsId: 'Nexus',
-                        groupId: 'com.example',
-                        nexusUrl: 'http://3.70.100.89:8081',
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        repository: 'backend',
-                        version: "${BUILD_NUMBER}"
-                    }
-                }
-
-                stage('Upload_Frontend') {
-                    steps {
-                        dir('frontend') {
-                            sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
-                        }
-                        nexusArtifactUploader artifacts: [[
-                            artifactId: 'frontend',
-                            classifier: '',
-                            file: "frontend/frontend-${BUILD_NUMBER}.tgz",
-                            type: 'tgz'
-                        ]],
-                        credentialsId: 'Nexus',
-                        groupId: 'com.example.frontend',
-                        nexusUrl: 'http://3.70.100.89:8081',
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        repository: 'frontend',
-                        version: "${BUILD_NUMBER}"
-                    }
-                }
-            }
-        }
-
-        stage('Docker_Build_Push') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker',
-                    usernameVariable: 'DOCKER_USERNAME',
-                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
                     script {
                         sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
 
@@ -152,17 +99,68 @@ pipeline {
                     }
                 }
             }
-        }
-
-        stage('Deploy_Kubernetes') {
-            steps {
-                sh 'ansible-playbook -i ansible/inventory.ini ansible/deploy.yml'
+            post {
+                success { echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}" }
+                failure { echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}" }
             }
         }
 
-        stage('Notification') {
+        stage('Upload_To_Nexus') {
+            parallel {
+
+                stage('Upload_Backend') {
+                    steps {
+                        nexusArtifactUploader(
+                            artifacts: [[
+                                artifactId: 'demo',
+                                classifier: '',
+                                file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
+                                type: 'jar'
+                            ]],
+                            credentialsId: 'Nexus',
+                            groupId: 'com.example',
+                            nexusUrl: '3.70.100.89:8081',
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            repository: 'backend',
+                            version: "${BUILD_NUMBER}"
+                        )
+                    }
+                }
+
+                stage('Upload_Frontend') {
+                    steps {
+                        dir('frontend') {
+                            sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
+                        }
+                        nexusArtifactUploader(
+                            artifacts: [[
+                                artifactId: 'frontend',
+                                classifier: '',
+                                file: "frontend/frontend-${BUILD_NUMBER}.tgz",
+                                type: 'tgz'
+                            ]],
+                            credentialsId: 'Nexus',
+                            groupId: 'com.example.frontend',
+                            nexusUrl: '3.70.100.89:8081',
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            repository: 'frontend',
+                            version: "${BUILD_NUMBER}"
+                        )
+                    }
+                }
+
+            }
+        }
+
+        stage('Deploy_Compare_App') {
             steps {
-                echo '📣 Sending build notification...'
+                sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
+            }
+            post {
+                success { echo "✅ Deploy SUCCESS - #${BUILD_NUMBER}" }
+                failure { echo "❌ Deploy FAILED - #${BUILD_NUMBER}" }
             }
         }
 
