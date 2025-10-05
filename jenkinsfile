@@ -88,3 +88,97 @@ pipeline {
                 echo '🚦 Waiting for SonarQube Quality Gate result...'
                 timeout(time: 15, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Nexus_Publish') {
+            parallel {
+                stage('Upload Backend') {
+                    steps {
+                        echo '📤 Uploading Backend artifact to Nexus...'
+                        nexusArtifactUploader artifacts: [[
+                            artifactId: 'demo',
+                            classifier: '',
+                            file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
+                            type: 'jar'
+                        ]],
+                        credentialsId: 'Nexus',
+                        groupId: 'com.example',
+                        nexusUrl: '3.70.100.89:8081',
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        repository: 'backend',
+                        version: "${BUILD_NUMBER}"
+                    }
+                }
+
+                stage('Upload Frontend') {
+                    steps {
+                        echo '📤 Uploading Frontend artifact to Nexus...'
+                        dir('frontend') {
+                            sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
+                        }
+                        nexusArtifactUploader artifacts: [[
+                            artifactId: 'frontend',
+                            classifier: '',
+                            file: "frontend/frontend-${BUILD_NUMBER}.tgz",
+                            type: 'tgz'
+                        ]],
+                        credentialsId: 'Nexus',
+                        groupId: 'com.example.frontend',
+                        nexusUrl: '3.70.100.89:8081',
+                        nexusVersion: 'nexus3',
+                        protocol: 'http',
+                        repository: 'frontend',
+                        version: "${BUILD_NUMBER}"
+                    }
+                }
+            }
+        }
+
+        stage('Docker_Build_Push') {
+            steps {
+                echo '🐳 Building and pushing Docker images...'
+                withCredentials([usernamePassword(credentialsId: 'docker',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                    script {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+
+                        // Backend
+                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
+                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
+
+                        // Frontend
+                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
+                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
+                    }
+                }
+            }
+        }
+
+        stage('Deploy_Kubernetes') {
+            steps {
+                echo '🚀 Deploying application to Kubernetes...'
+                sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
+            }
+        }
+
+        stage('Notification') {
+            steps {
+                echo '📣 Sending build notification...'
+                // ممكن تضيفي Discord/Webhook/Email هنا
+            }
+        }
+    }
+
+    post {
+        success {
+            echo '🎉 Pipeline finished SUCCESSFULLY ✅'
+        }
+        failure {
+            echo '🚨 Pipeline failed ❌ - check logs'
+        }
+    }
+}
