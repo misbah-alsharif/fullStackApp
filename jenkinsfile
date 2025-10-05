@@ -19,6 +19,7 @@ pipeline {
             }
         }
 
+        // 1️⃣ Build
         stage('Build_Backend_JAR') {
             steps {
                 sh '''
@@ -27,8 +28,8 @@ pipeline {
                 '''
             }
             post {
-                success { echo "✅ Backend JAR Build SUCCESS" }
-                failure { echo "❌ Backend JAR Build FAILED" }
+                success { echo "✅ Backend Build SUCCESS" }
+                failure { echo "❌ Backend Build FAILED" }
             }
         }
 
@@ -46,6 +47,21 @@ pipeline {
             }
         }
 
+        // 2️⃣ Test
+        stage('Run Backend Tests') {
+            steps {
+                sh '''
+                    cd demo/demo
+                    mvn test
+                '''
+            }
+            post {
+                success { echo "✅ Backend Tests SUCCESS" }
+                failure { echo "❌ Backend Tests FAILED" }
+            }
+        }
+
+        // 3️⃣ Sonar_Scan
         stage('SonarQube Analysis') {
             parallel {
 
@@ -83,28 +99,7 @@ pipeline {
             }
         }
 
-        stage('Build_And_Push_Docker') {
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                    script {
-                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-
-                        // Backend Docker
-                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
-                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-
-                        // Frontend Docker
-                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
-                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
-                    }
-                }
-            }
-            post {
-                success { echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}" }
-                failure { echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}" }
-            }
-        }
-
+        // 4️⃣ Nexus Publish
         stage('Upload_To_Nexus') {
             parallel {
 
@@ -154,7 +149,31 @@ pipeline {
             }
         }
 
-        stage('Deploy_Compare_App') {
+        // 5️⃣ Docker Build & Push
+        stage('Build_And_Push_Docker') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    script {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+
+                        // Backend Docker
+                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
+                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
+
+                        // Frontend Docker
+                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
+                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
+                    }
+                }
+            }
+            post {
+                success { echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}" }
+                failure { echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}" }
+            }
+        }
+
+        // 6️⃣ Deploy to Kubernetes
+        stage('Deploy_Kubernetes') {
             steps {
                 sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
             }
@@ -166,6 +185,7 @@ pipeline {
 
     }
 
+    // 7️⃣ Notification
     post {
         success { echo '🎉 Pipeline finished SUCCESSFULLY ✅' }
         failure { echo '🚨 Pipeline failed ❌ - check logs' }
