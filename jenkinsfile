@@ -48,7 +48,7 @@ pipeline {
         }
 
         // 2️⃣ Test
-        stage('Run Backend Tests') {
+        stage('Tests') {
             steps {
                 echo "ℹ️ Skipping backend tests (just printing message)"
             }
