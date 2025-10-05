@@ -9,7 +9,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main', credentialsId: 'jinkensGithub', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
@@ -37,34 +36,31 @@ pipeline {
 
         stage('SonarQube Analysis') {
             parallel {
-                stage('SonarQube Backend Analysis') {
+                stage('Frontend') {
                     steps {
-                        withSonarQubeEnv('sonar-backend') {
-                            sh 'mvn -f demo/pom.xml clean verify sonar:sonar -Dsonar.projectKey=fullstack-backend'
-                        }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            waitForQualityGate abortPipeline: true
+                        dir('frontend') {
+                            sh '''
+                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                -Dsonar.projectKey=frontend \
+                                -Dsonar.sources=. \
+                                -Dsonar.exclusions=node_modules/*,dist/* \
+                                -Dsonar.host.url=http://3.124.12.6:9000 \
+                                -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
+                            '''
                         }
                     }
                 }
-
-                stage('SonarQube Frontend Analysis') {
+                stage('Backend') {
                     steps {
-                        withSonarQubeEnv('sonar-frontend') {
-                            script {
-                                def scannerHome = tool 'sonar-scanner'
-                                dir('frontend') {
-                                    sh """
-                                        ${scannerHome}/bin/sonar-scanner \
-                                          -Dsonar.projectKey=frontend \
-                                          -Dsonar.sources=. \
-                                          -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
-                                    """
-                                }
-                            }
-                        }
-                        timeout(time: 15, unit: 'MINUTES') {
-                            waitForQualityGate abortPipeline: true
+                        dir('demo/demo') {
+                            sh '''
+                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                -Dsonar.projectKey=backend \
+                                -Dsonar.sources=. \
+                                -Dsonar.java.binaries=target/classes \
+                                -Dsonar.host.url=http://3.124.12.6:9000 \
+                                -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
+                            '''
                         }
                     }
                 }
@@ -125,13 +121,14 @@ pipeline {
             }
         }
 
+        // ✅ ستيج إرسال التقرير بالإيميل
         stage('Send Email Report') {
             steps {
                 mail to: "${RECIPIENT_EMAIL}",
                      subject: "Jenkins Pipeline #${BUILD_NUMBER} Report",
                      body: """Hello,
 
-Your Jenkins pipeline #${BUILD_NUMBER} has finished successfully.
+Your Jenkins pipeline #${BUILD_NUMBER} has finished.
 
 Check all stages and logs in Jenkins for details.
 
