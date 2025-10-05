@@ -47,40 +47,36 @@ pipeline {
         stage('Test') {
             steps {
                 echo '🧪 Running Tests... (skipped for now)'
+                // هنا ممكن تحطين unit tests أو integration tests
             }
         }
 
         stage('Sonar_Scan') {
             parallel {
-                stage('Frontend Sonar Scan') {
-                    steps {
-                        echo '🔍 Scanning Frontend with SonarQube...'
-                        dir('frontend') {
-                            sh '''
-docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-  -Dsonar.projectKey=frontend \
-  -Dsonar.sources=. \
-  -Dsonar.exclusions=node_modules/**,dist/** \
-  -Dsonar.host.url=http://3.70.100.89:9000 \
-  -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a \
-  -Dsonar.language=js
-'''
-                        }
-                    }
-                }
-
                 stage('Backend Sonar Scan') {
                     steps {
                         echo '🔍 Scanning Backend with SonarQube...'
                         dir('demo/demo') {
-                            sh '''
-docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-  -Dsonar.projectKey=backend \
-  -Dsonar.sources=. \
-  -Dsonar.java.binaries=target/classes \
-  -Dsonar.host.url=http://3.70.100.89:9000 \
-  -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
-'''
+                            withSonarQubeEnv('SonarQube') {
+                                sh "mvn clean verify sonar:sonar -Dsonar.projectKey=backend"
+                            }
+                        }
+                    }
+                }
+
+                stage('Frontend Sonar Scan') {
+                    steps {
+                        echo '🔍 Scanning Frontend with SonarQube...'
+                        dir('frontend') {
+                            withSonarQubeEnv('SonarQube') {
+                                sh """
+                                sonar-scanner \
+                                    -Dsonar.projectKey=frontend \
+                                    -Dsonar.sources=. \
+                                    -Dsonar.exclusions=node_modules/**,dist/** \
+                                    -Dsonar.language=js
+                                """
+                            }
                         }
                     }
                 }
@@ -92,92 +88,3 @@ docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
                 echo '🚦 Waiting for SonarQube Quality Gate result...'
                 timeout(time: 15, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
-                }
-            }
-        }
-
-        stage('Nexus_Publish') {
-            parallel {
-
-                stage('Upload Backend') {
-                    steps {
-                        echo '📤 Uploading Backend artifact to Nexus...'
-                        nexusArtifactUploader artifacts: [[
-                            artifactId: 'demo',
-                            classifier: '',
-                            file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
-                            type: 'jar'
-                        ]],
-                        credentialsId: 'Nexus',
-                        groupId: 'com.example',
-                        nexusUrl: 'http://3.70.100.89:8081',
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        repository: 'backend',
-                        version: "${BUILD_NUMBER}"
-                    }
-                }
-
-                stage('Upload Frontend') {
-                    steps {
-                        echo '📤 Uploading Frontend artifact to Nexus...'
-                        dir('frontend') {
-                            sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
-                        }
-                        nexusArtifactUploader artifacts: [[
-                            artifactId: 'frontend',
-                            classifier: '',
-                            file: "frontend/frontend-${BUILD_NUMBER}.tgz",
-                            type: 'tgz'
-                        ]],
-                        credentialsId: 'Nexus',
-                        groupId: 'com.example.frontend',
-                        nexusUrl: 'http://3.70.100.89:8081',
-                        nexusVersion: 'nexus3',
-                        protocol: 'http',
-                        repository: 'frontend',
-                        version: "${BUILD_NUMBER}"
-                    }
-                }
-            }
-        }
-
-        stage('Docker_Build_Push') {
-            steps {
-                echo '🐳 Building and pushing Docker images...'
-                withCredentials([usernamePassword(credentialsId: 'docker',
-                    usernameVariable: 'DOCKER_USERNAME',
-                    passwordVariable: 'DOCKER_PASSWORD')]) {
-                    script {
-                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-                        // Backend
-                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
-                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-                        // Frontend
-                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
-                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
-                    }
-                }
-            }
-        }
-
-        stage('Deploy_Kubernetes') {
-            steps {
-                echo '🚀 Deploying application to Kubernetes...'
-                // تأكدي اسم المسار صحيح (ansible وليس ansibale)
-                sh 'ansible-playbook -i ansible/inventory.ini ansible/deploy.yml'
-            }
-        }
-
-        stage('Notification') {
-            steps {
-                echo '📣 Sending build notification...'
-            }
-        }
-    }
-
-    post {
-        success { echo '🎉 Pipeline finished SUCCESSFULLY ✅' }
-        failure { echo '🚨 Pipeline failed ❌ - check logs' }
-    }
-}
