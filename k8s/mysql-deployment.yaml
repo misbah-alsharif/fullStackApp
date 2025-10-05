@@ -8,8 +8,7 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /tmp/data  # تأكد من أن هذا المسار موجود على الخادم
-
+    path: /tmp/data  
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
