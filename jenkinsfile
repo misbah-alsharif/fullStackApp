@@ -5,6 +5,7 @@ pipeline {
         DOCKERHUB_USER   = 'misbah2'
         BACKEND_IMAGE    = "${DOCKERHUB_USER}/backend-demo"
         FRONTEND_IMAGE   = "${DOCKERHUB_USER}/frontend-app"
+        BUILD_PLAYBOOK   = 'ansible/build.yml'
         DEPLOY_PLAYBOOK  = 'ansible/deploy.yml'
     }
 
@@ -12,91 +13,105 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo '📦 Checking out the repository...'
                 git branch: 'main',
                     credentialsId: 'jinkensGithub',
                     url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
-        stage('Build') {
-            parallel {
-                stage('Backend Build') {
-                    steps {
-                        echo '⚙️ Building Backend...'
-                        sh '''
-                            cd demo/demo
-                            mvn clean package -DskipTests
-                        '''
-                    }
-                }
+        stage('Build_Backend_JAR') {
+            steps {
+                sh '''
+                    cd demo/demo
+                    mvn clean package -DskipTests
+                '''
+            }
+            post {
+                success { echo "✅ Backend JAR Build SUCCESS" }
+                failure { echo "❌ Backend JAR Build FAILED" }
+            }
+        }
 
-                stage('Frontend Build') {
+        stage('Build_Frontend') {
+            steps {
+                dir('frontend') {
+                    sh '''
+                        docker run --rm -v $PWD:/app -w /app node:20 bash -c "npm install && npm run build"
+                    '''
+                }
+            }
+            post {
+                success { echo "✅ Frontend Build SUCCESS" }
+                failure { echo "❌ Frontend Build FAILED" }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            parallel {
+
+                stage('Frontend') {
                     steps {
-                        echo '🧱 Building Frontend...'
                         dir('frontend') {
                             sh '''
-                                docker run --rm -v $PWD:/app -w /app node:20 bash -c "npm install && npm run build"
+                            docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                              -Dsonar.projectKey=frontend \
+                              -Dsonar.sources=. \
+                              -Dsonar.exclusions=node_modules/**,dist/** \
+                              -Dsonar.host.url=http://3.70.100.89:9000 \
+                              -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a \
+                              -Dsonar.language=js
                             '''
                         }
                     }
                 }
-            }
-        }
 
-        stage('Test') {
-            steps {
-                echo '🧪 Running Tests... (skipped for now)'
-                // هنا ممكن تحطين unit tests أو integration tests
-            }
-        }
-
-        stage('Sonar_Scan') {
-            parallel {
-                stage('Backend Sonar Scan') {
+                stage('Backend') {
                     steps {
-                        echo '🔍 Scanning Backend with SonarQube...'
                         dir('demo/demo') {
-                            withSonarQubeEnv('SonarQube') {
-                                sh "mvn clean verify sonar:sonar -Dsonar.projectKey=backend"
-                            }
+                            sh '''
+                            docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                              -Dsonar.projectKey=backend \
+                              -Dsonar.sources=. \
+                              -Dsonar.java.binaries=target/classes \
+                              -Dsonar.host.url=http://3.70.100.89:9000 \
+                              -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
+                            '''
                         }
                     }
                 }
 
-                stage('Frontend Sonar Scan') {
-                    steps {
-                        echo '🔍 Scanning Frontend with SonarQube...'
-                        dir('frontend') {
-                            withSonarQubeEnv('SonarQube') {
-                                sh """
-                                sonar-scanner \
-                                    -Dsonar.projectKey=frontend \
-                                    -Dsonar.sources=. \
-                                    -Dsonar.exclusions=node_modules/**,dist/** \
-                                    -Dsonar.language=js
-                                """
-                            }
-                        }
-                    }
-                }
             }
         }
 
-        stage('Quality_Gate') {
+        stage('Build_And_Push_Docker') {
             steps {
-                echo '🚦 Waiting for SonarQube Quality Gate result...'
-                timeout(time: 15, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                withCredentials([usernamePassword(credentialsId: 'docker',
+                    usernameVariable: 'DOCKER_USERNAME',
+                    passwordVariable: 'DOCKER_PASSWORD')]) {
+                    script {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+
+                        // Backend Docker
+                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
+                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
+
+                        // Frontend Docker
+                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
+                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
+                    }
                 }
+            }
+            post {
+                success { echo "✅ Docker Build & Push SUCCESS - #${BUILD_NUMBER}" }
+                failure { echo "❌ Docker Build & Push FAILED - #${BUILD_NUMBER}" }
             }
         }
 
-        stage('Nexus_Publish') {
+        stage('Upload_To_Nexus') {
             parallel {
-                stage('Upload Backend') {
+
+                stage('Upload_Backend') {
                     steps {
-                        echo '📤 Uploading Backend artifact to Nexus...'
                         nexusArtifactUploader artifacts: [[
                             artifactId: 'demo',
                             classifier: '',
@@ -113,9 +128,8 @@ pipeline {
                     }
                 }
 
-                stage('Upload Frontend') {
+                stage('Upload_Frontend') {
                     steps {
-                        echo '📤 Uploading Frontend artifact to Nexus...'
                         dir('frontend') {
                             sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
                         }
@@ -134,51 +148,24 @@ pipeline {
                         version: "${BUILD_NUMBER}"
                     }
                 }
+
             }
         }
 
-        stage('Docker_Build_Push') {
+        stage('Deploy_Compare_App') {
             steps {
-                echo '🐳 Building and pushing Docker images...'
-                withCredentials([usernamePassword(credentialsId: 'docker',
-                    usernameVariable: 'DOCKER_USERNAME',
-                    passwordVariable: 'DOCKER_PASSWORD')]) {
-                    script {
-                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-
-                        // Backend
-                        sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
-                        sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-
-                        // Frontend
-                        sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
-                        sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
-                    }
-                }
-            }
-        }
-
-        stage('Deploy_Kubernetes') {
-            steps {
-                echo '🚀 Deploying application to Kubernetes...'
                 sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
             }
-        }
-
-        stage('Notification') {
-            steps {
-                echo '📣 Sending build notification...'
-                // ممكن تضيفي Discord/Webhook/Email هنا
+            post {
+                success { echo "✅ Deploy SUCCESS - #${BUILD_NUMBER}" }
+                failure { echo "❌ Deploy FAILED - #${BUILD_NUMBER}" }
             }
         }
+
     }
 
     post {
-        success {
-            echo '🎉 Pipeline finished SUCCESSFULLY ✅'
-        }
-        failure {
-            echo '🚨 Pipeline failed ❌ - check logs'
-        }
+        success { echo '🎉 Pipeline finished SUCCESSFULLY ✅' }
+        failure { echo '🚨 Pipeline failed ❌ - check logs' }
     }
 }
