@@ -35,46 +35,52 @@ pipeline {
             }
         }
 
-        stage('SonarQube Frontend Analysis') {
-            steps {
-                timeout(time: 15, unit: 'MINUTES') {
-                    dir('frontend') {
-                        sh '''
-                          docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                          -Dsonar.projectKey=frontend \
-                          -Dsonar.sources=. \
-                          -Dsonar.exclusions=node_modules/**,dist/** \
-                          -Dsonar.host.url=http://3.124.12.6:9000 \
-                          -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a \
-                          -Dsonar.language=js
-                        '''
-                    }
-                }
-            }
-            post {
-                success { echo "✅ Frontend Sonar SUCCESS" }
-                failure { echo "❌ Frontend Sonar FAILED" }
-            }
-        }
+        stage('SonarQube Analysis') {
+            parallel {
 
-        stage('SonarQube Backend Analysis') {
-            steps {
-                timeout(time: 15, unit: 'MINUTES') {
-                    dir('demo/demo') {
-                        sh '''
-                          docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                          -Dsonar.projectKey=backend \
-                          -Dsonar.sources=. \
-                          -Dsonar.java.binaries=target/classes \
-                          -Dsonar.host.url=http://3.124.12.6:9000 \
-                          -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
-                        '''
+                stage('SonarQube Frontend') {
+                    steps {
+                        timeout(time: 15, unit: 'MINUTES') {
+                            dir('frontend') {
+                                sh '''
+                                  docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                  -Dsonar.projectKey=frontend \
+                                  -Dsonar.sources=. \
+                                  -Dsonar.exclusions=node_modules/**,dist/** \
+                                  -Dsonar.host.url=http://3.124.12.6:9000 \
+                                  -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a \
+                                  -Dsonar.language=js
+                                '''
+                            }
+                        }
+                    }
+                    post {
+                        success { echo "✅ Frontend Sonar SUCCESS" }
+                        failure { echo "❌ Frontend Sonar FAILED" }
                     }
                 }
-            }
-            post {
-                success { echo "✅ Backend Sonar SUCCESS" }
-                failure { echo "❌ Backend Sonar FAILED" }
+
+                stage('SonarQube Backend') {
+                    steps {
+                        timeout(time: 15, unit: 'MINUTES') {
+                            dir('demo/demo') {
+                                sh '''
+                                  docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                  -Dsonar.projectKey=backend \
+                                  -Dsonar.sources=. \
+                                  -Dsonar.java.binaries=target/classes \
+                                  -Dsonar.host.url=http://3.124.12.6:9000 \
+                                  -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
+                                '''
+                            }
+                        }
+                    }
+                    post {
+                        success { echo "✅ Backend Sonar SUCCESS" }
+                        failure { echo "❌ Backend Sonar FAILED" }
+                    }
+                }
+
             }
         }
 
