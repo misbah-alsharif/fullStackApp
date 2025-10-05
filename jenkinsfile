@@ -75,6 +75,9 @@ pipeline {
                                 -Dsonar.language=js
                             '''
                         }
+                        timeout(time: 15, unit: 'MINUTES') {
+                            echo "⏱️ Waiting for SonarQube Frontend Quality Gate result..."
+                        }
                     }
                 }
 
@@ -89,6 +92,9 @@ pipeline {
                                 -Dsonar.host.url=http://3.70.100.89:9000 \
                                 -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
                             '''
+                        }
+                        timeout(time: 15, unit: 'MINUTES') {
+                            echo "⏱️ Waiting for SonarQube Backend Quality Gate result..."
                         }
                     }
                 }
