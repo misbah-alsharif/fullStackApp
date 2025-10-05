@@ -5,112 +5,62 @@ pipeline {
         DOCKERHUB_USER   = 'misbah2'
         BACKEND_IMAGE    = "${DOCKERHUB_USER}/backend-demo"
         FRONTEND_IMAGE   = "${DOCKERHUB_USER}/frontend-app"
-        BUILD_PLAYBOOK   = 'ansible/build.yml'
-        DEPLOY_PLAYBOOK  = 'ansible/deploy.yml'
         RECIPIENT_EMAIL  = 'm90714516@gmail.com'
     }
 
-    // تعريف متغيرات لتخزين حالة كل Stage
-    def stageStatus = [:]
-
     stages {
-
         stage('Checkout') {
             steps {
-                script {
-                    try {
-                        git branch: 'main', 
-                            credentialsId: 'jinkensGithub', 
-                            url: 'https://github.com/misbah-alsharif/fullStackApp.git'
-                        stageStatus['Checkout'] = '✅'
-                    } catch (e) {
-                        stageStatus['Checkout'] = '❌'
-                        error("Checkout failed")
-                    }
-                }
+                git branch: 'main', credentialsId: 'jinkensGithub', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
         }
 
         stage('Build_Backend_JAR') {
             steps {
-                script {
-                    try {
-                        sh '''
-                            cd demo/demo
-                            mvn clean package -DskipTests
-                        '''
-                        stageStatus['Backend Build'] = '✅'
-                    } catch (e) {
-                        stageStatus['Backend Build'] = '❌'
-                        error("Backend Build failed")
-                    }
-                }
+                sh '''
+                    cd demo/demo
+                    mvn clean package -DskipTests
+                '''
             }
         }
 
         stage('Build_Frontend') {
             steps {
-                script {
-                    try {
-                        dir('frontend') {
-                            sh '''
-                                docker run --rm -v $PWD:/app -w /app node:20 bash -c "npm install && npm run build"
-                            '''
-                        }
-                        stageStatus['Frontend Build'] = '✅'
-                    } catch (e) {
-                        stageStatus['Frontend Build'] = '❌'
-                        error("Frontend Build failed")
-                    }
+                dir('frontend') {
+                    sh '''
+                        docker run --rm -v $PWD:/app -w /app node:20 bash -c "npm install && npm run build"
+                    '''
                 }
             }
         }
 
         stage('SonarQube Analysis') {
             parallel {
-                stage('Frontend Analysis') {
+                stage('Frontend') {
                     steps {
-                        script {
-                            try {
-                                dir('frontend') {
-                                    sh '''
-                                        docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                                        -Dsonar.projectKey=frontend \
-                                        -Dsonar.sources=. \
-                                        -Dsonar.exclusions=node_modules/**,dist/** \
-                                        -Dsonar.host.url=http://3.124.12.6:9000 \
-                                        -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a \
-                                        -Dsonar.language=js
-                                    '''
-                                }
-                                stageStatus['SonarQube Frontend'] = '✅'
-                            } catch (e) {
-                                stageStatus['SonarQube Frontend'] = '❌'
-                                error("SonarQube Frontend Analysis failed")
-                            }
+                        dir('frontend') {
+                            sh '''
+                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                -Dsonar.projectKey=frontend \
+                                -Dsonar.sources=. \
+                                -Dsonar.exclusions=node_modules/**,dist/** \
+                                -Dsonar.host.url=http://3.124.12.6:9000 \
+                                -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a
+                            '''
                         }
                     }
                 }
-
-                stage('Backend Analysis') {
+                stage('Backend') {
                     steps {
-                        script {
-                            try {
-                                dir('demo/demo') {
-                                    sh '''
-                                        docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
-                                        -Dsonar.projectKey=backend \
-                                        -Dsonar.sources=. \
-                                        -Dsonar.java.binaries=target/classes \
-                                        -Dsonar.host.url=http://3.124.12.6:9000 \
-                                        -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
-                                    '''
-                                }
-                                stageStatus['SonarQube Backend'] = '✅'
-                            } catch (e) {
-                                stageStatus['SonarQube Backend'] = '❌'
-                                error("SonarQube Backend Analysis failed")
-                            }
+                        dir('demo/demo') {
+                            sh '''
+                                docker run --rm -v $PWD:/usr/src -w /usr/src sonarsource/sonar-scanner-cli \
+                                -Dsonar.projectKey=backend \
+                                -Dsonar.sources=. \
+                                -Dsonar.java.binaries=target/classes \
+                                -Dsonar.host.url=http://3.124.12.6:9000 \
+                                -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
+                            '''
                         }
                     }
                 }
@@ -121,60 +71,33 @@ pipeline {
             parallel {
                 stage('Upload_Backend') {
                     steps {
-                        script {
-                            try {
-                                nexusArtifactUploader(
-                                    artifacts: [[
-                                        artifactId: 'demo',
-                                        classifier: '',
-                                        file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar',
-                                        type: 'jar'
-                                    ]],
-                                    credentialsId: 'Nexus',
-                                    groupId: 'com.example',
-                                    nexusUrl: '3.124.12.6:8081',
-                                    nexusVersion: 'nexus3',
-                                    protocol: 'http',
-                                    repository: 'backend',
-                                    version: "${BUILD_NUMBER}"
-                                )
-                                stageStatus['Upload Backend'] = '✅'
-                            } catch (e) {
-                                stageStatus['Upload Backend'] = '❌'
-                                error("Upload Backend failed")
-                            }
-                        }
+                        nexusArtifactUploader(
+                            artifacts: [[artifactId: 'demo', classifier: '', file: 'demo/demo/target/demo-0.0.1-SNAPSHOT.jar', type: 'jar']],
+                            credentialsId: 'Nexus',
+                            groupId: 'com.example',
+                            nexusUrl: '3.124.12.6:8081',
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            repository: 'backend',
+                            version: "${BUILD_NUMBER}"
+                        )
                     }
                 }
-
                 stage('Upload_Frontend') {
                     steps {
-                        script {
-                            try {
-                                dir('frontend') {
-                                    sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
-                                }
-                                nexusArtifactUploader(
-                                    artifacts: [[
-                                        artifactId: 'frontend',
-                                        classifier: '',
-                                        file: "frontend/frontend-${BUILD_NUMBER}.tgz",
-                                        type: 'tgz'
-                                    ]],
-                                    credentialsId: 'Nexus',
-                                    groupId: 'com.example.frontend',
-                                    nexusUrl: '3.124.12.6:8081',
-                                    nexusVersion: 'nexus3',
-                                    protocol: 'http',
-                                    repository: 'frontend',
-                                    version: "${BUILD_NUMBER}"
-                                )
-                                stageStatus['Upload Frontend'] = '✅'
-                            } catch (e) {
-                                stageStatus['Upload Frontend'] = '❌'
-                                error("Upload Frontend failed")
-                            }
+                        dir('frontend') {
+                            sh "tar -czf frontend-${BUILD_NUMBER}.tgz -C dist ."
                         }
+                        nexusArtifactUploader(
+                            artifacts: [[artifactId: 'frontend', classifier: '', file: "frontend/frontend-${BUILD_NUMBER}.tgz", type: 'tgz']],
+                            credentialsId: 'Nexus',
+                            groupId: 'com.example.frontend',
+                            nexusUrl: '3.124.12.6:8081',
+                            nexusVersion: 'nexus3',
+                            protocol: 'http',
+                            repository: 'frontend',
+                            version: "${BUILD_NUMBER}"
+                        )
                     }
                 }
             }
@@ -182,55 +105,44 @@ pipeline {
 
         stage('Build_And_Push_Docker') {
             steps {
-                script {
-                    try {
-                        withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                            sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-
-                            sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
-                            sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
-
-                            sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
-                            sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
-                        }
-                        stageStatus['Docker Build & Push'] = '✅'
-                    } catch (e) {
-                        stageStatus['Docker Build & Push'] = '❌'
-                        error("Docker Build & Push failed")
-                    }
+                withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                    sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                    sh "docker build -t ${BACKEND_IMAGE}:${BUILD_NUMBER} -f demo/demo/Dockerfile demo"
+                    sh "docker push ${BACKEND_IMAGE}:${BUILD_NUMBER}"
+                    sh "docker build -t ${FRONTEND_IMAGE}:${BUILD_NUMBER} ./frontend"
+                    sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
                 }
             }
         }
 
         stage('Deploy_Kubernetes') {
             steps {
-                script {
-                    try {
-                        sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
-                        stageStatus['Deploy Kubernetes'] = '✅'
-                    } catch (e) {
-                        stageStatus['Deploy Kubernetes'] = '❌'
-                        error("Deploy to Kubernetes failed")
-                    }
-                }
+                sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
             }
         }
 
+        // ✅ ستيج إرسال التقرير بالإيميل
+        stage('Send Email Report') {
+            steps {
+                mail to: "${RECIPIENT_EMAIL}",
+                     subject: "Jenkins Pipeline #${BUILD_NUMBER} Report",
+                     body: """Hello,
+
+Your Jenkins pipeline #${BUILD_NUMBER} has finished.
+
+Check all stages and logs in Jenkins for details.
+
+Best regards,
+Jenkins"""
+            }
+        }
     }
 
     post {
-        always {
-            script {
-                def report = "Jenkins Pipeline #${BUILD_NUMBER} Report\n\n"
-                stageStatus.each { key, value ->
-                    report += "${key}: ${value}\n"
-                }
-                report += "\nCheck Jenkins logs for detailed info."
-
-                mail to: "m90714516@gmail.com",
-                     subject: "Jenkins Pipeline #${BUILD_NUMBER} Report",
-                     body: report
-            }
+        failure {
+            mail to: "${RECIPIENT_EMAIL}",
+                 subject: "🚨 Jenkins Pipeline #${BUILD_NUMBER} Failed",
+                 body: "Pipeline #${BUILD_NUMBER} has failed. Check Jenkins logs for details."
         }
     }
 }
