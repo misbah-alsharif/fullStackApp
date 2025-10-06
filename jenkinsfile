@@ -14,6 +14,10 @@ pipeline {
             steps {
                 git branch: 'main', credentialsId: 'jinkensGithub', url: 'https://github.com/misbah-alsharif/fullStackApp.git'
             }
+            post {
+                success { echo "✅ Checkout SUCCESS" }
+                failure { echo "❌ Checkout FAILED" }
+            }
         }
 
         stage('Build & Test') {
@@ -44,6 +48,7 @@ pipeline {
                     steps {
                         dir('demo/demo') {
                             sh 'mvn clean package -DskipTests=true'
+                            
                         }
                     }
                     post {
@@ -125,6 +130,10 @@ pipeline {
                             version: "${BUILD_NUMBER}"
                         )
                     }
+                    post {
+                        success { echo "✅ Backend Upload SUCCESS" }
+                        failure { echo "❌ Backend Upload FAILED" }
+                    }
                 }
 
                 stage('Upload_Frontend') {
@@ -148,6 +157,10 @@ pipeline {
                             version: "${BUILD_NUMBER}"
                         )
                     }
+                    post {
+                        success { echo "✅ Frontend Upload SUCCESS" }
+                        failure { echo "❌ Frontend Upload FAILED" }
+                    }
                 }
 
             }
@@ -163,11 +176,19 @@ pipeline {
                     sh "docker push ${FRONTEND_IMAGE}:${BUILD_NUMBER}"
                 }
             }
+            post {
+                success { echo "✅ Docker Build & Push SUCCESS" }
+                failure { echo "❌ Docker Build & Push FAILED" }
+            }
         }
 
         stage('Deploy_Kubernetes') {
             steps {
                 sh 'ansible-playbook -i ansibale/inventory.ini ansibale/deploy.yml'
+            }
+            post {
+                success { echo "✅ Deploy SUCCESS" }
+                failure { echo "❌ Deploy FAILED" }
             }
         }
 
@@ -183,6 +204,10 @@ Check all stages and logs in Jenkins for details.
 
 Best regards,
 Jenkins"""
+            }
+            post {
+                success { echo "✅ Email Report Sent" }
+                failure { echo "❌ Email Report Failed" }
             }
         }
 
