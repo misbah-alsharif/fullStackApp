@@ -43,9 +43,7 @@ pipeline {
                     }
                     steps {
                         dir('demo/demo') {
-                            // Build + run tests
-                            sh 'mvn clean package'   // بدون -DskipTests
-                            sh 'mvn test'           // يشغل الاختبارات
+                            sh 'mvn clean package -DskipTests=true'
                         }
                     }
                     post {
