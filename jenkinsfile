@@ -48,6 +48,7 @@ pipeline {
                     steps {
                         dir('demo/demo') {
                             sh 'mvn clean package -DskipTests=true'
+                            sh 'mvn test'
                             
                         }
                     }
