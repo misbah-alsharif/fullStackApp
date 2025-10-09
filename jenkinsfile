@@ -73,7 +73,7 @@ pipeline {
                                   -Dsonar.projectKey=frontend \
                                   -Dsonar.sources=. \
                                   -Dsonar.exclusions=node_modules/**,dist/** \
-                                  -Dsonar.host.url=http://18.196.64.84:9000 \
+                                  -Dsonar.host.url=http://18.197.112.232:9000 \
                                   -Dsonar.login=sqp_8990494f829567460b3cac2d1d9d086ebbce146a \
                                   -Dsonar.language=js
                                 '''
@@ -95,7 +95,7 @@ pipeline {
                                   -Dsonar.projectKey=backend \
                                   -Dsonar.sources=. \
                                   -Dsonar.java.binaries=target/classes \
-                                  -Dsonar.host.url=http://18.196.64.84:9000 \
+                                  -Dsonar.host.url=http://18.197.112.232:9000 \
                                   -Dsonar.login=sqp_0b6cb0caac555832de2f7d2ddf22c0781d55ef2c
                                 '''
                             }
@@ -124,7 +124,7 @@ pipeline {
                             ]],
                             credentialsId: 'Nexus',
                             groupId: 'com.example',
-                            nexusUrl: '18.196.64.84:8081',
+                            nexusUrl: '18.197.112.232:8081',
                             nexusVersion: 'nexus3',
                             protocol: 'http',
                             repository: 'backend',
@@ -151,7 +151,7 @@ pipeline {
                             ]],
                             credentialsId: 'Nexus',
                             groupId: 'com.example.frontend',
-                            nexusUrl: '18.196.64.84:8081',
+                            nexusUrl: '18.197.112.232:8081',
                             nexusVersion: 'nexus3',
                             protocol: 'http',
                             repository: 'frontend',
