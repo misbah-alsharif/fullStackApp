@@ -8,7 +8,8 @@ spec:
   accessModes:
     - ReadWriteOnce
   hostPath:
-    path: /tmp/data  
+    path: /tmp/data
+  persistentVolumeReclaimPolicy: Retain
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -20,7 +21,6 @@ spec:
   resources:
     requests:
       storage: 1Gi
-
 ---
 apiVersion: apps/v1
 kind: Deployment
